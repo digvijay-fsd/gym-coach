@@ -1,0 +1,51 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "Start: web preview",
+      "detail": "Opens the app in your browser (demo tracking, no camera model)",
+      "type": "npm",
+      "script": "web",
+      "isBackground": true,
+      "problemMatcher": []
+    },
+    {
+      "label": "Start: phone (Expo Go)",
+      "detail": "Scan the QR code with Expo Go. UI only: pose tracking needs the dev build",
+      "type": "npm",
+      "script": "start",
+      "isBackground": true,
+      "problemMatcher": []
+    },
+    {
+      "label": "Start: phone (dev build)",
+      "detail": "For the FormAI dev build installed on your phone, with real camera tracking",
+      "type": "npm",
+      "script": "start:dev-client",
+      "isBackground": true,
+      "problemMatcher": []
+    },
+    {
+      "label": "Build: Android dev build (EAS)",
+      "detail": "Cloud build of the installable dev app. Needs an Expo login",
+      "type": "npm",
+      "script": "build:android:development",
+      "problemMatcher": []
+    },
+    {
+      "label": "Check: everything",
+      "detail": "Type check, lint and pose tests",
+      "type": "npm",
+      "script": "check",
+      "group": { "kind": "test", "isDefault": true },
+      "problemMatcher": ["$tsc"]
+    },
+    {
+      "label": "Check: pose tests",
+      "type": "npm",
+      "script": "test",
+      "group": "test",
+      "problemMatcher": []
+    }
+  ]
+}
