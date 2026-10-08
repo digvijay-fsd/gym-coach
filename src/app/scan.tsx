@@ -1,8 +1,9 @@
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import { router } from 'expo-router';
-import { useEffect, useRef, useState } from 'react';
+import { useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { CameraPermissionCard } from '../components/CameraPermissionCard';
 import { Button, Icon, IconButton, t } from '../components/ui';
 import { EXERCISES } from '../data/exercises';
 import { colors, fonts } from '../theme';
@@ -17,21 +18,21 @@ export default function Scan() {
   const [permission, requestPermission] = useCameraPermissions();
   const [scanned, setScanned] = useState<string | null>(null);
   const [cameraError, setCameraError] = useState<string | null>(null);
-  const permissionRequested = useRef(false);
   const exercise = scanned ? findExercise(scanned) : undefined;
+  const goBack = () => (router.canGoBack() ? router.back() : router.replace('/workouts'));
 
-  useEffect(() => {
-    if (permission?.status !== 'undetermined' || permissionRequested.current) return;
-    permissionRequested.current = true;
+  // Only asks after the user taps "Allow camera" on the permission card.
+  const allowCamera = () => {
+    setCameraError(null);
     requestPermission().catch((error: unknown) => {
       setCameraError(error instanceof Error ? error.message : 'Could not request camera permission.');
     });
-  }, [permission?.status, requestPermission]);
+  };
 
   return (
     <SafeAreaView style={s.root}>
       <View style={s.header}>
-        <IconButton icon="back" label="Back to workouts" onPress={() => (router.canGoBack() ? router.back() : router.replace('/workouts'))} />
+        <IconButton icon="back" label="Back to workouts" onPress={goBack} />
         <Text style={t.h2}>Scan QR</Text>
         <View style={{ width: 44 }} />
       </View>
@@ -53,26 +54,14 @@ export default function Scan() {
           <View style={s.cornerBottomRight} />
         </View>
 
-        {!permission?.granted || cameraError ? (
-          <View style={s.prompt}>
-            <Icon name={cameraError ? 'warn' : 'scan'} size={32} color={cameraError ? colors.warn : colors.accent} />
-            <Text style={t.bodyStrong}>{cameraError ? 'Scanner unavailable' : !permission ? 'Checking camera' : 'Camera access needed'}</Text>
-            <Text style={[t.small, { textAlign: 'center' }]}>
-              {cameraError ?? (!permission ? 'Please wait…' : permission.canAskAgain ? 'Allow camera access to scan a QR code.' : 'Enable camera access for FormAI in your device settings.')}
-            </Text>
-            {(permission?.canAskAgain || cameraError) && (
-              <Button
-                label={cameraError ? 'Try again' : 'Allow camera'}
-                onPress={() => {
-                  setCameraError(null);
-                  requestPermission().catch((error: unknown) => {
-                    setCameraError(error instanceof Error ? error.message : 'Could not request camera permission.');
-                  });
-                }}
-                style={{ marginTop: 8 }}
-              />
-            )}
-          </View>
+        {(permission !== null && !permission.granted) || cameraError ? (
+          <CameraPermissionCard
+            purpose="FormAI uses the back camera to read exercise QR codes."
+            blocked={permission !== null && !permission.granted && !permission.canAskAgain}
+            error={cameraError}
+            onAllow={allowCamera}
+            onNotNow={goBack}
+          />
         ) : null}
 
         {!scanned && permission?.granted && !cameraError && (
@@ -118,7 +107,6 @@ const s = StyleSheet.create({
   cornerTopRight: { position: 'absolute', top: 0, right: 0, width: 36, height: 36, borderTopWidth: 4, borderRightWidth: 4, borderColor: colors.accent, borderTopRightRadius: 12 },
   cornerBottomLeft: { position: 'absolute', bottom: 0, left: 0, width: 36, height: 36, borderBottomWidth: 4, borderLeftWidth: 4, borderColor: colors.accent, borderBottomLeftRadius: 12 },
   cornerBottomRight: { position: 'absolute', bottom: 0, right: 0, width: 36, height: 36, borderBottomWidth: 4, borderRightWidth: 4, borderColor: colors.accent, borderBottomRightRadius: 12 },
-  prompt: { position: 'absolute', left: 24, right: 24, alignItems: 'center', gap: 10, borderRadius: 20, backgroundColor: colors.bg, padding: 20 },
   hint: { position: 'absolute', bottom: 24, backgroundColor: 'rgba(14,15,12,0.85)', borderRadius: 999, paddingHorizontal: 14, paddingVertical: 9 },
   hintText: { fontFamily: fonts.medium, fontSize: 14, color: colors.text },
   footer: { paddingHorizontal: 24, paddingVertical: 18 },

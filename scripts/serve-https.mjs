@@ -9,7 +9,7 @@
 import { existsSync, mkdirSync, readFileSync, statSync, writeFileSync, createReadStream } from 'node:fs';
 import { createServer } from 'node:https';
 import { networkInterfaces } from 'node:os';
-import { extname, join, normalize, resolve } from 'node:path';
+import { extname, join, normalize, resolve, sep } from 'node:path';
 import { generate } from 'selfsigned';
 
 const ROOT = resolve('dist');
@@ -72,7 +72,7 @@ async function certificate(ips) {
 function fileFor(urlPath) {
   const clean = normalize(decodeURIComponent(urlPath.split('?')[0])).replace(/^([/\\])+/, '');
   const full = join(ROOT, clean);
-  if (!full.startsWith(ROOT)) return null;
+  if (full !== ROOT && !full.startsWith(ROOT + sep)) return null;
   if (existsSync(full) && statSync(full).isFile()) return full;
   if (existsSync(`${full}.html`)) return `${full}.html`;
   // Single-page app: unknown routes load the app shell.

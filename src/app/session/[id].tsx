@@ -6,6 +6,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Svg, { Circle } from 'react-native-svg';
+import { CameraPermissionCard } from '../../components/CameraPermissionCard';
 import { Button, Icon, IconButton } from '../../components/ui';
 import { WebPoseCamera } from '../../components/WebPoseCamera';
 import { getExercise } from '../../data/exercises';
@@ -58,7 +59,8 @@ export default function Session() {
   const [permission, requestPermission] = useCameraPermissions();
   const [cameraReady, setCameraReady] = useState(false);
   const [cameraError, setCameraError] = useState<string | null>(null);
-  const permissionRequested = useRef(false);
+  // Web: the browser's camera prompt only appears after "Allow camera" is tapped.
+  const [webAllowed, setWebAllowed] = useState(false);
 
   const totalSets = Number(params.sets) || ex?.sets || 3;
   const target = Number(params.target) || ex?.target || 10;
@@ -101,17 +103,15 @@ export default function Session() {
     Speech.speak(text, { rate: 1.05 });
   };
 
-  useEffect(() => {
-    if (webTracking || permission?.status !== 'undetermined' || permissionRequested.current) return;
-    permissionRequested.current = true;
-    requestPermission().catch((error: unknown) => {
-      setCameraError(error instanceof Error ? error.message : 'Could not request camera permission.');
-    });
-  }, [permission?.status, requestPermission]);
-
-  const enableCamera = () => {
+  // The camera is never requested on its own: the permission card explains why
+  // first, and the system dialog opens only when the user taps "Allow camera".
+  const allowCamera = () => {
     setCameraError(null);
     setCameraReady(false);
+    if (webTracking) {
+      setWebAllowed(true);
+      return;
+    }
     requestPermission().catch((error: unknown) => {
       setCameraError(error instanceof Error ? error.message : 'Could not request camera permission.');
     });
@@ -348,7 +348,7 @@ export default function Session() {
   return (
     <View style={s.root}>
       <View style={StyleSheet.absoluteFill}>
-        {webTracking && !cameraError && (
+        {webTracking && webAllowed && !cameraError && (
           <WebPoseCamera
             active={!paused}
             onPose={handleLandmarks}
@@ -488,16 +488,14 @@ export default function Session() {
         </View>
       )}
 
-      {(!webTracking && !permission?.granted) || cameraError ? (
-        <View style={s.cameraPrompt}>
-          <Text style={s.overlayTitle}>{!permission ? 'Checking camera' : cameraError ? 'Camera unavailable' : 'Camera access needed'}</Text>
-          <Text style={s.overlaySub}>
-            {cameraError ?? (!permission ? 'Please wait…' : permission.canAskAgain ? 'Allow camera access to see the live preview.' : 'Enable camera access for FormAI in your device settings.')}
-          </Text>
-          {(permission?.canAskAgain || cameraError) && (
-            <Button label="Enable camera" onPress={enableCamera} style={{ marginTop: 12, minWidth: 180 }} />
-          )}
-        </View>
+      {(webTracking ? !webAllowed : permission !== null && !permission.granted) || cameraError ? (
+        <CameraPermissionCard
+          purpose="FormAI watches your body through the front camera to count your reps and correct your form."
+          blocked={!webTracking && permission !== null && !permission.granted && !permission.canAskAgain}
+          error={cameraError}
+          onAllow={allowCamera}
+          onNotNow={finish}
+        />
       ) : null}
 
       <View style={[s.panel, { paddingBottom: 20 + insets.bottom }]}>
@@ -548,7 +546,6 @@ const s = StyleSheet.create({
   cueTitle: { fontFamily: fonts.bold, fontSize: 17, color: colors.onAccent },
   cueDetail: { fontFamily: fonts.medium, fontSize: 13, color: colors.onAccent },
   overlay: { position: 'absolute', left: 0, right: 0, top: 0, bottom: 200, backgroundColor: 'rgba(14,15,12,0.82)', alignItems: 'center', justifyContent: 'center', gap: 4 },
-  cameraPrompt: { position: 'absolute', left: 24, right: 24, top: '35%', alignItems: 'center', gap: 8, borderRadius: 20, backgroundColor: 'rgba(14,15,12,0.92)', padding: 20 },
   overlayKicker: { fontFamily: fonts.bold, fontSize: 14, color: colors.accent, textTransform: 'uppercase', letterSpacing: 1.2 },
   overlayTitle: { fontFamily: fonts.display, fontSize: 44, color: colors.text, textTransform: 'uppercase' },
   overlaySub: { fontFamily: fonts.regular, fontSize: 15, color: colors.textMuted },
