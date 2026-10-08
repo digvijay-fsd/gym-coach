@@ -192,6 +192,19 @@ const knee = (p: Pose, side: 'L' | 'R') =>
 const elbows = (p: Pose) =>
   (angle(p[LM.L_SHOULDER], p[LM.L_ELBOW], p[LM.L_WRIST]) + angle(p[LM.R_SHOULDER], p[LM.R_ELBOW], p[LM.R_WRIST])) / 2;
 const deg = (n: number) => `${Math.round(n)}°`;
+const hipAngle = (p: Pose, side: 'L' | 'R') =>
+  side === 'L' ? angle(p[LM.L_SHOULDER], p[LM.L_HIP], p[LM.L_KNEE]) : angle(p[LM.R_SHOULDER], p[LM.R_HIP], p[LM.R_KNEE]);
+/** Arms out to the side: hip–shoulder–elbow angle, averaged. 0 = arms down, 90 = shoulder height. */
+const abduction = (p: Pose) =>
+  (angle(p[LM.L_HIP], p[LM.L_SHOULDER], p[LM.L_ELBOW]) + angle(p[LM.R_HIP], p[LM.R_SHOULDER], p[LM.R_ELBOW])) / 2;
+/** How far the elbows have lifted away from the torso (same measure as abduction, front view). */
+const upperArmLift = abduction;
+const wristsAboveShoulders = (p: Pose) => (p[LM.L_WRIST].y + p[LM.R_WRIST].y) / 2 < (p[LM.L_SHOULDER].y + p[LM.R_SHOULDER].y) / 2;
+/** Highest knee relative to its hip, in torso lengths: about 0.65 standing, 0 at hip height. */
+const kneeLift = (p: Pose) => {
+  const torso = Math.max(0.01, Math.abs(mid(p[LM.L_HIP], p[LM.R_HIP]).y - mid(p[LM.L_SHOULDER], p[LM.R_SHOULDER]).y));
+  return Math.min(p[LM.L_KNEE].y - p[LM.L_HIP].y, p[LM.R_KNEE].y - p[LM.R_HIP].y) / torso;
+};
 
 export const RULES: Record<string, ExerciseRules> = {
   squat: {
@@ -294,7 +307,119 @@ export const RULES: Record<string, ExerciseRules> = {
         : [],
     badge: (p) => ({ joint: LM.L_KNEE, label: 'Knee', value: deg(knee(p, 'L')) }),
   },
+  curl: {
+    mode: 'reps',
+    required: [LM.L_SHOULDER, LM.R_SHOULDER, LM.L_ELBOW, LM.R_ELBOW, LM.L_WRIST, LM.R_WRIST, LM.L_HIP, LM.R_HIP],
+    metric: elbows,
+    active: (m) => m < 70,
+    rest: (m) => m > 140,
+    dir: 'down',
+    checks: (p) =>
+      upperArmLift(p) > 35
+        ? [{ id: 'elbow-drift', joint: LM.L_ELBOW, cue: 'Keep your elbows by your sides', detail: 'Upper arms are swinging forward.', penalty: 10 }]
+        : [],
+    repEnd: (top) =>
+      top > 60 ? [{ id: 'range', joint: LM.L_WRIST, cue: 'Curl all the way up', detail: 'Stopped short of a full curl.', penalty: 5 }] : [],
+    badge: (p) => ({ joint: LM.L_ELBOW, label: 'Elbow', value: deg(elbows(p)) }),
+  },
+  press: {
+    mode: 'reps',
+    required: [LM.L_SHOULDER, LM.R_SHOULDER, LM.L_ELBOW, LM.R_ELBOW, LM.L_WRIST, LM.R_WRIST],
+    // Only counts while the hands are overhead, so arms hanging at the sides read as rest.
+    metric: (p) => (wristsAboveShoulders(p) ? elbows(p) : 0),
+    active: (m) => m > 155,
+    rest: (m) => m < 100,
+    dir: 'up',
+    checks: () => [],
+    repEnd: (top) =>
+      top < 165
+        ? [{ id: 'lockout', joint: LM.L_ELBOW, cue: 'Press all the way up', detail: 'Arms stopped short of straight overhead.', penalty: 10 }]
+        : [],
+    badge: (p) => ({ joint: LM.L_ELBOW, label: 'Elbow', value: deg(elbows(p)) }),
+  },
+  raise: {
+    mode: 'reps',
+    required: [LM.L_SHOULDER, LM.R_SHOULDER, LM.L_ELBOW, LM.R_ELBOW, LM.L_HIP, LM.R_HIP],
+    metric: abduction,
+    active: (m) => m > 70,
+    rest: (m) => m < 30,
+    dir: 'up',
+    checks: () => [],
+    repEnd: (top) =>
+      top > 105
+        ? [{ id: 'too-high', joint: LM.L_ELBOW, cue: 'Stop at shoulder height', detail: 'Arms went above shoulder level.', penalty: 5 }]
+        : [],
+    badge: (p) => ({ joint: LM.L_SHOULDER, label: 'Arms', value: deg(abduction(p)) }),
+  },
+  rdl: {
+    mode: 'reps',
+    required: [LM.L_SHOULDER, LM.L_HIP, LM.L_KNEE, LM.L_ANKLE],
+    metric: (p) => hipAngle(p, 'L'),
+    active: (m) => m < 115,
+    rest: (m) => m > 160,
+    dir: 'down',
+    checks: (p) =>
+      knee(p, 'L') < 135
+        ? [{ id: 'squatting', joint: LM.L_KNEE, cue: 'Push your hips back', detail: 'Knees are bending like a squat. Keep them soft.', penalty: 10 }]
+        : [],
+    badge: (p) => ({ joint: LM.L_HIP, label: 'Hip', value: deg(hipAngle(p, 'L')) }),
+  },
+  row: {
+    mode: 'reps',
+    required: [LM.L_SHOULDER, LM.L_ELBOW, LM.L_WRIST, LM.L_HIP],
+    metric: (p) => angle(p[LM.L_SHOULDER], p[LM.L_ELBOW], p[LM.L_WRIST]),
+    active: (m) => m < 95,
+    rest: (m) => m > 145,
+    dir: 'down',
+    checks: (p) =>
+      leanFromVertical(p[LM.L_HIP], p[LM.L_SHOULDER]) < 30
+        ? [{ id: 'upright', joint: LM.L_SHOULDER, cue: 'Hinge forward from the hips', detail: 'Torso is too upright for a bent-over row.', penalty: 10 }]
+        : [],
+    badge: (p) => ({ joint: LM.L_ELBOW, label: 'Elbow', value: deg(angle(p[LM.L_SHOULDER], p[LM.L_ELBOW], p[LM.L_WRIST])) }),
+  },
+  highknees: {
+    mode: 'reps',
+    required: [LM.L_SHOULDER, LM.R_SHOULDER, ...LEGS],
+    metric: kneeLift,
+    active: (m) => m < 0.2,
+    rest: (m) => m > 0.5,
+    dir: 'down',
+    checks: () => [],
+    repEnd: (top) =>
+      top > 0.1
+        ? [{ id: 'height', joint: LM.L_KNEE, cue: 'Drive your knees higher', detail: 'Aim for knees at hip height.', penalty: 5 }]
+        : [],
+    badge: (p) => ({ joint: LM.L_KNEE, label: 'Knee lift', value: `${Math.round(Math.max(0, 1 - kneeLift(p)) * 100)}%` }),
+  },
+  situp: {
+    mode: 'reps',
+    required: [LM.L_SHOULDER, LM.L_HIP, LM.L_KNEE],
+    metric: (p) => hipAngle(p, 'L'),
+    active: (m) => m < 100,
+    rest: (m) => m > 125,
+    dir: 'down',
+    checks: () => [],
+    repEnd: (top) =>
+      top > 80 ? [{ id: 'range', joint: LM.L_SHOULDER, cue: 'Sit all the way up', detail: 'Chest stopped short of your knees.', penalty: 5 }] : [],
+    badge: (p) => ({ joint: LM.L_HIP, label: 'Hip', value: deg(hipAngle(p, 'L')) }),
+  },
+  climbers: {
+    mode: 'reps',
+    required: [LM.L_SHOULDER, LM.L_HIP, LM.R_HIP, LM.L_KNEE, LM.R_KNEE],
+    metric: (p) => Math.min(hipAngle(p, 'L'), hipAngle(p, 'R')),
+    active: (m) => m < 110,
+    rest: (m) => m > 150,
+    dir: 'down',
+    checks: () => [],
+    repEnd: (top) =>
+      top > 95
+        ? [{ id: 'knee-drive', joint: LM.L_KNEE, cue: 'Drive your knee toward your chest', detail: 'Knee stopped short.', penalty: 5 }]
+        : [],
+    badge: (p) => ({ joint: LM.L_HIP, label: 'Hip', value: deg(Math.min(hipAngle(p, 'L'), hipAngle(p, 'R'))) }),
+  },
 };
+// A goblet squat moves like a bodyweight squat; the dumbbell does not change what the camera checks.
+RULES.goblet = RULES.squat;
 
 // ---------- rep tracking ----------
 

@@ -1,16 +1,26 @@
 import { router } from 'expo-router';
 import { useState } from 'react';
-import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Button, Card, Segmented, t } from '../../components/ui';
+import { Button, Card, Glyph, Icon, Segmented, t } from '../../components/ui';
+import { achievements } from '../../data/achievements';
+import { fromKg } from '../../data/body';
 import { getExercise } from '../../data/exercises';
+import { exercisesDone, recordsFor } from '../../data/records';
 import { useNow } from '../../hooks/useNow';
 import { startOfDay, useStore, type SessionResult } from '../../state/store';
 import { colors, fonts } from '../../theme';
 
 type Range = 'week' | 'month' | 'year';
 const DAY = 86_400_000;
-const GROUP: Record<string, string> = { squat: 'Legs', lunge: 'Legs', wallsit: 'Legs', bridge: 'Legs', pushup: 'Chest', plank: 'Core', jacks: 'Cardio' };
+// Muscle groups for the balance chart.
+const GROUP: Record<string, string> = {
+  squat: 'Legs', goblet: 'Legs', lunge: 'Legs', wallsit: 'Legs', bridge: 'Legs', rdl: 'Legs', legpress: 'Legs', legcurl: 'Legs',
+  pushup: 'Push', bench: 'Push', dbbench: 'Push', press: 'Push', raise: 'Push',
+  row: 'Pull', pulldown: 'Pull', cablerow: 'Pull', curl: 'Pull',
+  plank: 'Core', situp: 'Core',
+  jacks: 'Cardio', highknees: 'Cardio', climbers: 'Cardio', treadmill: 'Cardio',
+};
 
 function buckets(history: SessionResult[], range: Range, now: number) {
   const today = startOfDay(now);
@@ -30,21 +40,24 @@ function buckets(history: SessionResult[], range: Range, now: number) {
 }
 
 export default function Progress() {
-  const { history } = useStore();
+  const { history, workouts, bodyLog, customPrograms, profile } = useStore();
   const [range, setRange] = useState<Range>('week');
+  const badges = achievements({ history, workouts: workouts.length, bodyEntries: bodyLog.length, customWorkouts: customPrograms.length });
+  const earned = badges.filter((b) => b.earned).length;
+  const done = exercisesDone(history).slice(0, 6);
   const now = useNow();
   const bs = buckets(history, range, now);
   const inRange = history.filter((h) => h.finishedAt >= bs[0].from && h.finishedAt < bs[bs.length - 1].to);
   const minutes = Math.round(inRange.reduce((s, h) => s + h.durationMs, 0) / 60000);
   const reps = inRange.filter((h) => h.mode === 'reps').reduce((s, h) => s + h.sets.reduce((a, b) => a + b, 0), 0);
   const bars = bs.map((b) => {
-    const xs = history.filter((h) => h.finishedAt >= b.from && h.finishedAt < b.to);
+    const xs = history.filter((h) => !h.manual && h.finishedAt >= b.from && h.finishedAt < b.to);
     return { ...b, v: xs.length ? Math.round(xs.reduce((s, h) => s + h.score, 0) / xs.length) : null };
   });
   const groups = new Map<string, number>();
   inRange.forEach((h) => groups.set(GROUP[h.exerciseId] ?? 'Other', (groups.get(GROUP[h.exerciseId] ?? 'Other') ?? 0) + 1));
   const total = inRange.length || 1;
-  const balance = ['Legs', 'Chest', 'Core', 'Cardio'].map((g) => ({ g, pct: Math.round(((groups.get(g) ?? 0) / total) * 100) }));
+  const balance = ['Legs', 'Push', 'Pull', 'Core', 'Cardio'].map((g) => ({ g, pct: Math.round(((groups.get(g) ?? 0) / total) * 100) }));
   const weakest = inRange.length ? balance.reduce((a, b) => (b.pct < a.pct ? b : a)) : null;
 
   return (
@@ -72,6 +85,21 @@ export default function Progress() {
               <Text style={s.stat}>{v}</Text>
             </Card>
           ))}
+        </View>
+
+        <View style={{ flexDirection: 'row', gap: 8 }}>
+          <Pressable accessibilityRole="button" onPress={() => router.push('/achievements')} style={({ pressed }) => [s.shortcut, pressed && { opacity: 0.85 }]}>
+            <Icon name="trophy" size={22} color={colors.accent} />
+            <Text style={t.bodyStrong}>Achievements</Text>
+            <Text style={t.small}>
+              {earned} of {badges.length} earned
+            </Text>
+          </Pressable>
+          <Pressable accessibilityRole="button" onPress={() => router.push('/body')} style={({ pressed }) => [s.shortcut, pressed && { opacity: 0.85 }]}>
+            <Icon name="user" size={22} color={colors.accent} />
+            <Text style={t.bodyStrong}>Body weight</Text>
+            <Text style={t.small}>{bodyLog[0] ? `${fromKg(bodyLog[0].kg, profile.units)} ${profile.units}` : 'Not logged yet'}</Text>
+          </Pressable>
         </View>
 
         {history.length === 0 ? (
@@ -116,6 +144,27 @@ export default function Progress() {
             </Card>
 
             <View style={{ gap: 8 }}>
+              <Text style={t.label}>Personal records</Text>
+              {done.map((id) => {
+                const ex = getExercise(id);
+                const r = recordsFor(history, id);
+                if (!ex || !r) return null;
+                const best = r.weighted ? `${Math.round(r.bestE1rm)} ${profile.units}` : ex.mode === 'hold' ? `${r.bestSet}s` : `${r.bestSet} reps`;
+                return (
+                  <Pressable key={id} accessibilityRole="button" onPress={() => router.push({ pathname: '/records/[id]', params: { id } })} style={({ pressed }) => [s.prRow, pressed && { opacity: 0.85 }]}>
+                    <Glyph path={ex.glyph} size={26} color={ex.tracked ? colors.accent : colors.textMuted} />
+                    <View style={{ flex: 1, gap: 2 }}>
+                      <Text style={[t.bodyStrong, { fontSize: 15 }]}>{ex.name}</Text>
+                      <Text style={t.small}>{r.weighted ? 'Best est. 1-rep max' : ex.mode === 'hold' ? 'Longest hold' : 'Best set'}</Text>
+                    </View>
+                    <Text style={s.prValue}>{best}</Text>
+                    <Icon name="arrow" size={16} color={colors.textFaint} />
+                  </Pressable>
+                );
+              })}
+            </View>
+
+            <View style={{ gap: 8 }}>
               <Text style={t.label}>Recent sessions</Text>
               {history.slice(0, 8).map((h) => (
                 <Card key={h.id} style={s.historyRow}>
@@ -126,7 +175,11 @@ export default function Progress() {
                       {h.mode === 'reps' ? `${h.sets.reduce((a, b) => a + b, 0)} reps` : `${h.sets.reduce((a, b) => a + b, 0)}s held`}
                     </Text>
                   </View>
-                  <Text style={[s.stat, { color: h.score < 85 ? colors.warn : colors.accent }]}>{h.score}</Text>
+                  {h.manual ? (
+                    <Text style={t.small}>Logged</Text>
+                  ) : (
+                    <Text style={[s.stat, { color: h.score < 85 ? colors.warn : colors.accent }]}>{h.score}</Text>
+                  )}
                 </Card>
               ))}
             </View>
@@ -151,4 +204,7 @@ const s = StyleSheet.create({
   fill: { height: 8, borderRadius: 4 },
   pct: { width: 38, textAlign: 'right', fontFamily: fonts.semibold, fontSize: 13, color: colors.text },
   historyRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 12 },
+  shortcut: { flex: 1, gap: 4, padding: 14, borderRadius: 20, backgroundColor: colors.surface },
+  prRow: { minHeight: 60, borderRadius: 16, backgroundColor: colors.surface, paddingHorizontal: 14, flexDirection: 'row', alignItems: 'center', gap: 12 },
+  prValue: { fontFamily: fonts.display, fontSize: 22, color: colors.text },
 });

@@ -2,7 +2,8 @@ import { router } from 'expo-router';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Button, Card, Icon, t } from '../../components/ui';
-import { getExercise, PLANS } from '../../data/exercises';
+import { dayMinutes, getExercise } from '../../data/exercises';
+import { todaysWorkout } from '../../data/plan';
 import { useNow } from '../../hooks/useNow';
 import { startOfDay, streak, useStore } from '../../state/store';
 import { colors, fonts } from '../../theme';
@@ -10,8 +11,8 @@ import { colors, fonts } from '../../theme';
 const DAY = 86_400_000;
 
 export default function Home() {
-  const { profile, history } = useStore();
-  const plan = PLANS[profile.goal];
+  const { profile, history, workouts } = useStore();
+  const { program, day } = todaysWorkout(profile, workouts);
   const now = useNow();
   const today = startOfDay(now);
   // Monday-based week strip.
@@ -22,7 +23,8 @@ export default function Home() {
     return { l, n: new Date(d).getDate(), done: doneDays.has(d), today: d === today };
   });
   const doneThisWeek = week.filter((d) => d.done).length;
-  const recent = history.slice(0, 5);
+  // Form scores only exist for camera-tracked sessions.
+  const recent = history.filter((h) => !h.manual).slice(0, 5);
   const avg = recent.length ? Math.round(recent.reduce((s, h) => s + h.score, 0) / recent.length) : null;
   const tip = history.find((h) => h.topIssue)?.topIssue;
   const dateLabel = new Date(now).toLocaleDateString(undefined, { weekday: 'long', day: 'numeric', month: 'long' });
@@ -39,7 +41,7 @@ export default function Home() {
               Ready{profile.name ? `, ${profile.name}` : ''}?
             </Text>
           </View>
-          <Pressable accessibilityRole="button" accessibilityLabel="Profile and progress" onPress={() => router.navigate('/progress')} style={s.avatar}>
+          <Pressable accessibilityRole="button" accessibilityLabel="Your profile" onPress={() => router.navigate('/profile')} style={s.avatar}>
             <Text style={s.avatarText}>{initial}</Text>
           </Pressable>
         </View>
@@ -47,22 +49,24 @@ export default function Home() {
         <View style={s.plan}>
           <View style={s.planTop}>
             <Text style={s.planKicker}>{"Today's plan"}</Text>
-            <Text style={s.planBadge}>AI picked</Text>
+            <Text style={s.planBadge} numberOfLines={1}>
+              {program.title}
+            </Text>
           </View>
           <View style={{ gap: 4 }}>
-            <Text style={s.planTitle}>{plan.title}</Text>
+            <Text style={s.planTitle}>{day.title}</Text>
             <Text style={s.planMeta}>
-              {plan.minutes} min · {plan.exerciseIds.length} exercises · Bodyweight
+              {dayMinutes(day)} min · {day.blocks.length} exercises
             </Text>
           </View>
           <View style={s.tags}>
-            {plan.exerciseIds.map((id) => (
-              <Text key={id} style={s.tag}>
-                {getExercise(id)?.name}
+            {day.blocks.map((blk, i) => (
+              <Text key={`${blk.exerciseId}-${i}`} style={s.tag}>
+                {getExercise(blk.exerciseId)?.name}
               </Text>
             ))}
           </View>
-          <Button variant="dark" icon="play" label="Start workout" onPress={() => router.push(`/exercise/${plan.exerciseIds[0]}`)} style={{ height: 52 }} />
+          <Button variant="dark" icon="play" label="Start workout" onPress={() => router.push({ pathname: '/workout/[program]/[day]', params: { program: program.id, day: day.id } })} style={{ height: 52 }} />
         </View>
 
         <Card style={{ gap: 12 }}>
@@ -128,7 +132,7 @@ const s = StyleSheet.create({
   plan: { backgroundColor: colors.accent, borderRadius: 24, padding: 20, gap: 14 },
   planTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   planKicker: { fontFamily: fonts.bold, fontSize: 12, color: colors.onAccent, textTransform: 'uppercase', letterSpacing: 1.2 },
-  planBadge: { fontFamily: fonts.bold, fontSize: 12, color: colors.accent, backgroundColor: colors.bg, paddingHorizontal: 10, paddingVertical: 4, borderRadius: 999, overflow: 'hidden' },
+  planBadge: { fontFamily: fonts.bold, fontSize: 12, color: colors.accent, backgroundColor: colors.bg, paddingHorizontal: 10, paddingVertical: 4, borderRadius: 999, overflow: 'hidden', maxWidth: '62%' },
   planTitle: { fontFamily: fonts.display, fontSize: 34, lineHeight: 34, color: colors.onAccent, textTransform: 'uppercase' },
   planMeta: { fontFamily: fonts.medium, fontSize: 15, color: colors.onAccent },
   tags: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },

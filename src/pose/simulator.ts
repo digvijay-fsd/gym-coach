@@ -22,6 +22,33 @@ const STAND: Frame = [
 ];
 
 const set = (f: Frame, i: number, x: number, y: number): Frame => f.map((p, j) => (j === i ? [x, y] : p));
+/** Several landmark moves at once: [frameIndex, x, y][]. */
+const move = (f: Frame, moves: [number, number, number][]): Frame => moves.reduce((acc, [i, x, y]) => set(acc, i, x, y), f);
+// Frame indexes: 0 nose, 1/2 shoulders, 3/4 elbows, 5/6 wrists, 7/8 hips, 9/10 knees, 11/12 ankles (left/right).
+
+const SIDE_STAND: Frame = [
+  [0.48, 0.17], [0.5, 0.28], [0.5, 0.28], [0.5, 0.4], [0.5, 0.4], [0.5, 0.5], [0.5, 0.5],
+  [0.5, 0.52], [0.5, 0.52], [0.5, 0.68], [0.5, 0.68], [0.5, 0.84], [0.5, 0.84],
+];
+const HINGE: Frame = [
+  [0.3, 0.4], [0.36, 0.4], [0.36, 0.4], [0.37, 0.5], [0.37, 0.5], [0.38, 0.6], [0.38, 0.6],
+  [0.56, 0.52], [0.56, 0.52], [0.52, 0.68], [0.52, 0.68], [0.5, 0.84], [0.5, 0.84],
+];
+const HIGH_PLANK: Frame = [
+  [0.22, 0.45], [0.3, 0.45], [0.3, 0.45], [0.3, 0.55], [0.3, 0.55], [0.3, 0.65], [0.3, 0.65],
+  [0.55, 0.48], [0.55, 0.48], [0.72, 0.51], [0.72, 0.51], [0.88, 0.54], [0.88, 0.54],
+];
+const LYING: Frame = [
+  [0.18, 0.7], [0.25, 0.7], [0.25, 0.7], [0.3, 0.66], [0.3, 0.66], [0.34, 0.62], [0.34, 0.62],
+  [0.5, 0.7], [0.5, 0.7], [0.64, 0.56], [0.64, 0.56], [0.76, 0.7], [0.76, 0.7],
+];
+const both = (fn: (s: 'L' | 'R') => [number, number, number][]) => [...fn('L'), ...fn('R')];
+// Mirror an x offset from the body's centre line (0.5) for the right side in front views.
+const mx = (s: 'L' | 'R', x: number) => (s === 'L' ? x : 1 - x);
+const arm = (s: 'L' | 'R', ex: number, ey: number, wx: number, wy: number): [number, number, number][] => [
+  [s === 'L' ? 3 : 4, mx(s, ex), ey],
+  [s === 'L' ? 5 : 6, mx(s, wx), wy],
+];
 
 const SPECS: Record<string, Spec> = {
   squat: {
@@ -89,7 +116,49 @@ const SPECS: Record<string, Spec> = {
     active: [],
     fault: (f) => set(set(set(set(f, 7, 0.4, 0.5), 8, 0.4, 0.5), 9, 0.58, 0.58), 10, 0.58, 0.58),
   },
+  curl: {
+    rest: STAND,
+    active: move(STAND, both((s) => arm(s, 0.61, 0.39, 0.62, 0.3))),
+    fault: (f) => move(f, both((s) => arm(s, 0.62, 0.34, 0.62, 0.25))), // elbows swing forward
+  },
+  press: {
+    rest: move(STAND, both((s) => arm(s, 0.66, 0.3, 0.65, 0.2))),
+    active: move(STAND, both((s) => arm(s, 0.6, 0.165, 0.615, 0.05))),
+    fault: (f) => move(f, both((s) => arm(s, 0.63, 0.19, 0.64, 0.09))), // stops short of lockout
+  },
+  raise: {
+    rest: STAND,
+    active: move(STAND, both((s) => arm(s, 0.72, 0.29, 0.84, 0.3))),
+    fault: (f) => move(f, both((s) => arm(s, 0.7, 0.18, 0.8, 0.1))), // above shoulder height
+  },
+  rdl: {
+    rest: SIDE_STAND,
+    active: HINGE,
+    fault: (f) => move(f, [[7, 0.56, 0.58], [8, 0.56, 0.58], [9, 0.44, 0.64], [10, 0.44, 0.64]]), // squats it
+  },
+  row: {
+    rest: HINGE,
+    active: move(HINGE, [[3, 0.45, 0.38], [4, 0.45, 0.38], [5, 0.4, 0.48], [6, 0.4, 0.48]]),
+    fault: (f) =>
+      move(f, [[1, 0.48, 0.32], [2, 0.48, 0.32], [3, 0.55, 0.4], [4, 0.55, 0.4], [5, 0.47, 0.44], [6, 0.47, 0.44]]), // stands up
+  },
+  highknees: {
+    rest: STAND,
+    active: move(STAND, [[9, 0.57, 0.5], [11, 0.58, 0.66]]),
+    fault: (f) => move(f, [[9, 0.565, 0.555], [11, 0.57, 0.72]]), // knee stays low
+  },
+  situp: {
+    rest: LYING,
+    active: move(LYING, [[0, 0.36, 0.4], [1, 0.4, 0.48], [2, 0.4, 0.48], [3, 0.46, 0.46], [4, 0.46, 0.46], [5, 0.5, 0.44], [6, 0.5, 0.44]]),
+    fault: (f) => move(f, [[0, 0.31, 0.47], [1, 0.35, 0.54], [2, 0.35, 0.54], [3, 0.41, 0.52], [4, 0.41, 0.52], [5, 0.45, 0.5], [6, 0.45, 0.5]]),
+  },
+  climbers: {
+    rest: HIGH_PLANK,
+    active: move(HIGH_PLANK, [[9, 0.42, 0.58], [11, 0.55, 0.62]]),
+    fault: (f) => move(f, [[9, 0.55, 0.62], [11, 0.68, 0.64]]), // short knee drive
+  },
 };
+SPECS.goblet = SPECS.squat;
 
 const ease = (t: number) => 0.5 - Math.cos(Math.PI * t) / 2;
 

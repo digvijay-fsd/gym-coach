@@ -49,10 +49,13 @@ const fmt = (ms: number) => {
 };
 
 export default function Session() {
-  const params = useLocalSearchParams<{ id: string; sets?: string; target?: string; rest?: string }>();
+  const params = useLocalSearchParams<{ id: string; sets?: string; target?: string; rest?: string; weight?: string; run?: string }>();
   const ex = getExercise(params.id);
   const insets = useSafeAreaInsets();
-  const { addResult } = useStore();
+  const { addResult, run, advanceRun } = useStore();
+  // Part of a whole workout: finishing returns to the workout player.
+  const inRun = params.run === '1' && !!run;
+  const weight = Number(params.weight) || 0;
   const [paused, setPaused] = useState(false);
   const [voice, setVoice] = useState(true);
   const [snap, setSnap] = useState<Snapshot | null>(null);
@@ -153,14 +156,24 @@ export default function Session() {
       repScores: reps.map((r) => r.score),
       issueCounts: counts,
       topIssue: top ? issuesById.get(top[0]) ?? null : null,
+      target,
+      weights: weight ? trackers.map(() => weight) : undefined,
+      workoutId: inRun ? run!.id : undefined,
     };
     if (result.sets.length === 0) {
-      if (router.canGoBack()) router.back();
+      // Nothing done: in a workout, go back to the player so the user can retry or skip.
+      if (inRun) router.replace('/workout/next');
+      else if (router.canGoBack()) router.back();
       else router.replace('/home');
       return;
     }
     addResult(result);
-    router.replace({ pathname: '/summary', params: { id: result.id } });
+    if (inRun) {
+      advanceRun(result.id, ex.id);
+      router.replace('/workout/next');
+    } else {
+      router.replace({ pathname: '/summary', params: { id: result.id } });
+    }
   };
 
   const handlePose = (nativeFrame: PoseFrame) => handleLandmarks(nativeFrame.landmarks);

@@ -1,4 +1,4 @@
-import { Redirect, router } from 'expo-router';
+import { router } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -10,13 +10,9 @@ import { colors, fonts } from '../theme';
 
 const demo = createDemoPoseSource('squat');
 
-export default function Index() {
-  const { onboarded } = useStore();
-  return onboarded ? <Redirect href="/home" /> : <Welcome />;
-}
-
-function Welcome() {
-  const { profile, setProfile } = useStore();
+// Shown only when signed out (see the guards in _layout.tsx).
+export default function Welcome() {
+  const { accounts } = useStore();
   const [time, setTime] = useState(0);
   const [box, setBox] = useState({ w: 0, h: 0 });
 
@@ -71,14 +67,9 @@ function Welcome() {
       </View>
 
       <View style={s.footer}>
-        <Button label="Get started" icon="arrow" onPress={() => router.push('/setup')} />
-        <Pressable accessibilityRole="button" onPress={() => {
-            setProfile(profile);
-            router.replace('/home');
-          }}
-          style={s.link}
-        >
-          <Text style={s.linkText}>I already have an account</Text>
+        <Button label="Create account" icon="arrow" onPress={() => router.push('/signup')} />
+        <Pressable accessibilityRole="button" onPress={() => router.push('/login')} style={s.link}>
+          <Text style={s.linkText}>{accounts.length ? 'Log in' : 'I already have an account'}</Text>
         </Pressable>
       </View>
     </SafeAreaView>

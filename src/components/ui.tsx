@@ -22,6 +22,13 @@ const ICONS = {
   trophy: 'M8 21h8M12 17v4M7 4h10v5a5 5 0 0 1-10 0zM7 6H4a3 3 0 0 0 3 4M17 6h3a3 3 0 0 1-3 4',
   search: 'M20 20l-4-4',
   minus: 'M5 12h14',
+  user: 'M4 21c1-4 4.5-6 8-6s7 2 8 6',
+  logout: 'M15 4h4a1 1 0 0 1 1 1v14a1 1 0 0 1-1 1h-4M10 16l-4-4 4-4M6 12h10',
+  trash: 'M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3',
+  edit: 'M4 20h4L19 9l-4-4L4 16zM13 7l4 4',
+  clock: 'M12 7v5l3 2',
+  skip: 'M5 5l10 7-10 7zM19 5v14',
+  list: 'M8 6h12M8 12h12M8 18h12M4 6h.01M4 12h.01M4 18h.01',
   plus: 'M12 5v14M5 12h14',
 } as const;
 export type IconName = keyof typeof ICONS | 'play' | 'pause' | 'stop';
@@ -52,6 +59,8 @@ export function Icon({ name, size = 22, color = colors.text, strokeWidth = 2 }: 
       {name === 'scan' && <Circle cx={12} cy={12} r={3} />}
       {name === 'lock' && <Rect x={5} y={11} width={14} height={10} rx={2} />}
       {name === 'search' && <Circle cx={11} cy={11} r={7} />}
+      {name === 'user' && <Circle cx={12} cy={8} r={4} />}
+      {name === 'clock' && <Circle cx={12} cy={12} r={9} />}
     </Svg>
   );
 }
