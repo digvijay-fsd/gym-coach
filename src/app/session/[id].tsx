@@ -7,9 +7,10 @@ import { Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Svg, { Circle } from 'react-native-svg';
 import { Button, Icon, IconButton } from '../../components/ui';
+import { WebPoseCamera } from '../../components/WebPoseCamera';
 import { getExercise } from '../../data/exercises';
 import { PoseCamera, type PoseFrame } from 'react-native-pose-detection';
-import { RepTracker, type FrameResult, type Issue, type Pose, type RepResult } from '../../pose/analysis';
+import { isVisible, RepTracker, type FrameResult, type Issue, type Pose, type RepResult } from '../../pose/analysis';
 import { useStore, type SessionResult } from '../../state/store';
 import { colors, fonts } from '../../theme';
 
@@ -18,6 +19,12 @@ const COUNTDOWN_MS = 3000;
 const CUE_REPEAT_MS = 4000;
 const RENDER_MS = 100;
 const poseTrackingAvailable = Platform.OS !== 'web' && requireOptionalNativeModule('PoseDetection') !== null;
+// On web, MediaPipe runs in the browser (WebPoseCamera); it needs an https page.
+const webTracking = Platform.OS === 'web';
+const trackingAvailable = poseTrackingAvailable || webTracking;
+/** How long the body may drop out of view before the set pauses. */
+const LOST_MS = 1000;
+const STEP_IN_REPEAT_MS = 6000;
 
 type Snapshot = {
   phase: Phase;
@@ -32,6 +39,7 @@ type Snapshot = {
   lastRep: RepResult | null;
   lastRepAgoMs: number;
   setScore: number;
+  inView: boolean;
 };
 
 const fmt = (ms: number) => {
@@ -76,6 +84,9 @@ export default function Session() {
     currentPose: Pose | null;
     currentFrame: FrameResult | null;
     lastPoseAt: number | null;
+    /** Engine clock when the whole body was last seen. */
+    lastSeenAt: number | null;
+    stepInSpokenAt: number;
     finished: boolean;
   } | null>(null);
 
@@ -91,7 +102,7 @@ export default function Session() {
   };
 
   useEffect(() => {
-    if (permission?.status !== 'undetermined' || permissionRequested.current) return;
+    if (webTracking || permission?.status !== 'undetermined' || permissionRequested.current) return;
     permissionRequested.current = true;
     requestPermission().catch((error: unknown) => {
       setCameraError(error instanceof Error ? error.message : 'Could not request camera permission.');
@@ -152,11 +163,12 @@ export default function Session() {
     router.replace({ pathname: '/summary', params: { id: result.id } });
   };
 
-  const handlePose = (nativeFrame: PoseFrame) => {
+  const handlePose = (nativeFrame: PoseFrame) => handleLandmarks(nativeFrame.landmarks);
+
+  const handleLandmarks = (landmarks: ArrayLike<number>, aspect?: number) => {
     const e = eng.current;
     if (!e || e.finished) return;
 
-    const landmarks = nativeFrame.landmarks;
     const pose: Pose = Array.from({ length: 33 }, (_, index) => {
       const offset = index * 4;
       return {
@@ -167,8 +179,12 @@ export default function Session() {
       };
     });
     e.currentPose = pose;
+    if (aspect) e.tracker.aspect = aspect;
+    if (isVisible(pose, e.tracker.rules.required)) e.lastSeenAt = e.clock;
 
-    if (e.phase !== 'work' || pausedRef.current) return;
+    // Only coach while the person is on camera; the loop pauses the set otherwise.
+    const inView = e.lastSeenAt !== null && e.clock - e.lastSeenAt < LOST_MS;
+    if (e.phase !== 'work' || pausedRef.current || !inView) return;
 
     const now = e.setClock;
     const poseDt = e.lastPoseAt === null ? 0 : Math.min(250, now - e.lastPoseAt);
@@ -229,6 +245,8 @@ export default function Session() {
       currentPose: null,
       currentFrame: null,
       lastPoseAt: null,
+      lastSeenAt: null,
+      stepInSpokenAt: -1e9,
       finished: false,
     };
     say(`Get into position. ${ex.name}, set 1 of ${totalSets}.`);
@@ -242,15 +260,22 @@ export default function Session() {
       const dt = pausedRef.current ? 0 : now - last;
       last = now;
       e.clock += dt;
+      const inView = !trackingAvailable || (e.lastSeenAt !== null && e.clock - e.lastSeenAt < LOST_MS);
+      if (!inView && (e.phase === 'countdown' || e.phase === 'work') && !pausedRef.current && e.clock - e.stepInSpokenAt > STEP_IN_REPEAT_MS) {
+        e.stepInSpokenAt = e.clock;
+        say('Step into the camera so I can see your whole body.');
+      }
 
-      if (e.phase === 'countdown' && e.clock - e.phaseAt >= COUNTDOWN_MS) {
+      if (e.phase === 'countdown' && !inView) {
+        e.phaseAt = e.clock;
+      } else if (e.phase === 'countdown' && e.clock - e.phaseAt >= COUNTDOWN_MS) {
         e.phase = 'work';
         e.phaseAt = e.clock;
         e.setClock = 0;
         e.lastPoseAt = null;
         say('Go');
       } else if (e.phase === 'work') {
-        e.setClock += dt;
+        if (inView) e.setClock += dt;
       } else if (e.phase === 'rest' && e.clock - e.phaseAt >= restMs) {
         e.setIdx += 1;
         e.tracker = new RepTracker(ex.id);
@@ -278,6 +303,7 @@ export default function Session() {
           lastRep: e.lastRep,
           lastRepAgoMs: e.clock - e.lastRepAt,
           setScore: e.tracker.averageScore,
+          inView,
         });
       }
       raf = requestAnimationFrame(loop);
@@ -312,7 +338,7 @@ export default function Session() {
   const cameraStatus = cameraError
     ? 'Camera unavailable'
     : cameraReady
-      ? poseTrackingAvailable
+      ? trackingAvailable
         ? 'Live camera + AI'
         : 'Camera preview only'
       : permission?.granted
@@ -322,7 +348,21 @@ export default function Session() {
   return (
     <View style={s.root}>
       <View style={StyleSheet.absoluteFill}>
-        {permission?.granted && !cameraError && !poseTrackingAvailable && (
+        {webTracking && !cameraError && (
+          <WebPoseCamera
+            active={!paused}
+            onPose={handleLandmarks}
+            onReady={() => {
+              setCameraReady(true);
+              setCameraError(null);
+            }}
+            onError={(message) => {
+              setCameraReady(false);
+              setCameraError(message);
+            }}
+          />
+        )}
+        {!webTracking && permission?.granted && !cameraError && !poseTrackingAvailable && (
           <CameraView
             style={StyleSheet.absoluteFill}
             facing="front"
@@ -377,7 +417,7 @@ export default function Session() {
           </View>
           <View style={s.chip}>
             <Text style={[s.chipText, { color: colors.textMuted }]}>
-              {!poseTrackingAvailable
+              {!trackingAvailable
                 ? 'Install development build for AI tracking'
                 : bodyDetected
                   ? 'Live tracking · body detected'
@@ -412,8 +452,17 @@ export default function Session() {
       {snap?.phase === 'countdown' && (
         <View style={s.overlay}>
           <Text style={s.overlayKicker}>{ex.name}</Text>
-          <Text style={s.countdown}>{Math.max(1, Math.ceil(snap.phaseLeftMs / 1000))}</Text>
-          <Text style={s.overlaySub}>Get into position</Text>
+          {snap.inView ? (
+            <>
+              <Text style={s.countdown}>{Math.max(1, Math.ceil(snap.phaseLeftMs / 1000))}</Text>
+              <Text style={s.overlaySub}>Get into position</Text>
+            </>
+          ) : (
+            <>
+              <Text style={s.overlayTitle}>Step into view</Text>
+              <Text style={s.overlaySub}>The set starts when your whole body is on camera</Text>
+            </>
+          )}
         </View>
       )}
       {snap?.phase === 'rest' && (
@@ -426,6 +475,12 @@ export default function Session() {
           <Button variant="outline" label="Skip rest" onPress={skipRest} style={{ marginTop: 16, minWidth: 180 }} />
         </View>
       )}
+      {snap?.phase === 'work' && !snap.inView && !paused && (
+        <View style={s.overlay} accessibilityLiveRegion="polite">
+          <Text style={s.overlayTitle}>Step into view</Text>
+          <Text style={s.overlaySub}>Paused until your whole body is back on camera</Text>
+        </View>
+      )}
       {paused && (
         <View style={s.overlay}>
           <Text style={s.overlayTitle}>Paused</Text>
@@ -433,7 +488,7 @@ export default function Session() {
         </View>
       )}
 
-      {!permission?.granted || cameraError ? (
+      {(!webTracking && !permission?.granted) || cameraError ? (
         <View style={s.cameraPrompt}>
           <Text style={s.overlayTitle}>{!permission ? 'Checking camera' : cameraError ? 'Camera unavailable' : 'Camera access needed'}</Text>
           <Text style={s.overlaySub}>

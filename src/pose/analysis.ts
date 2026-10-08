@@ -331,7 +331,8 @@ export class RepTracker {
   private repIssues = new Map<string, Issue>();
   private lastT: number | null = null;
 
-  private aspect: number;
+  /** Frame height / width, so angles use square units. */
+  aspect: number;
 
   constructor(exerciseId: string, aspect = 1) {
     this.aspect = aspect;

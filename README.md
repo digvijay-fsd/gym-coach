@@ -23,6 +23,14 @@ In VS Code, run these from **Terminal › Run Task…** instead:
 | Build: Android dev build (EAS) | Builds the installable dev app in the cloud (`npx eas-cli@latest login` first). |
 | Check: everything | Type check, lint and pose tests. Run before committing. |
 
+### Live tracking in your phone's browser (any phone, over Wi-Fi)
+
+```bash
+npm run phone:web
+```
+
+This builds the web app and serves it from your PC at `https://<your-pc-ip>:8443`. Open that on a phone on the same Wi-Fi. The certificate is self-signed, so the browser warns once (iPhone: Show Details › visit this website; Android: Advanced › Proceed). Tracking uses MediaPipe in the browser and needs internet the first time to download the model. Re-run the command after code changes.
+
 ### Which way to run it
 
 - **Changing screens or styles:** the web preview or Expo Go is fastest. Edits reload instantly.
