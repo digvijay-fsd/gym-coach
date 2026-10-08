@@ -49,7 +49,7 @@ async function certificate(ips) {
     return { key: readFileSync(keyFile), cert: readFileSync(certFile) };
   }
   // New certificate whenever the PC's network address changes.
-  const pems = await generate([{ name: 'commonName', value: 'FormAI local' }], {
+  const pems = await generate([{ name: 'commonName', value: 'Gym Coach local' }], {
     keySize: 2048,
     algorithm: 'sha256',
     extensions: [
@@ -99,7 +99,7 @@ const server = createServer(await certificate(ips), (req, res) => {
 });
 
 server.listen(PORT, '0.0.0.0', () => {
-  console.log('\nFormAI is running on your Wi-Fi. Open this on your phone (same Wi-Fi):\n');
+  console.log('\nGym Coach is running on your Wi-Fi. Open this on your phone (same Wi-Fi):\n');
   for (const ip of ips) console.log(`  https://${ip}:${PORT}`);
   console.log('\nThe certificate is self-signed, so the browser warns once:');
   console.log('  iPhone Safari: Show Details > visit this website > Visit Website');

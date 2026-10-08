@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "FormAI",
+    "name": "Gym Coach",
     "slug": "formai",
     "version": "1.0.0",
     "orientation": "portrait",
@@ -33,7 +33,7 @@
       [
         "expo-camera",
         {
-          "cameraPermission": "Allow FormAI to use your camera for on-device exercise tracking and QR scanning.",
+          "cameraPermission": "Allow Gym Coach to use your camera for on-device exercise tracking and QR scanning.",
           "recordAudioAndroid": false,
           "barcodeScannerEnabled": true
         }
@@ -42,7 +42,7 @@
         "react-native-pose-detection",
         {
           "model": "lite",
-          "cameraPermissionText": "Allow FormAI to use your camera for on-device exercise tracking and QR scanning."
+          "cameraPermissionText": "Allow Gym Coach to use your camera for on-device exercise tracking and QR scanning."
         }
       ]
     ],

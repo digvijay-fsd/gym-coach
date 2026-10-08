@@ -16,11 +16,11 @@ type Props = {
 // Asks for the camera in the open: explains why first, and the system dialog
 // appears only after the user taps "Allow camera". Never requested silently.
 export function CameraPermissionCard({ purpose, blocked = false, error, onAllow, onNotNow }: Props) {
-  const title = error ? 'Camera unavailable' : blocked ? 'Camera is turned off for FormAI' : 'Allow camera access';
+  const title = error ? 'Camera unavailable' : blocked ? 'Camera is turned off for Gym Coach' : 'Allow camera access';
   const body = error
     ? error
     : blocked
-      ? `${purpose} Turn on Camera for FormAI in your phone's settings, then come back.`
+      ? `${purpose} Turn on Camera for Gym Coach in your phone's settings, then come back.`
       : purpose;
 
   return (

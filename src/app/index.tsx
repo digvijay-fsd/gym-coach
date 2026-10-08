@@ -38,7 +38,7 @@ function Welcome() {
           <View style={s.logo}>
             <Icon name="scan" size={16} color={colors.onAccent} strokeWidth={2.6} />
           </View>
-          <Text style={s.brandText}>FORMAI</Text>
+          <Text style={s.brandText}>GYM COACH</Text>
         </View>
         <Text style={t.small}>Free forever</Text>
       </View>
@@ -56,7 +56,7 @@ function Welcome() {
 
       <View style={{ gap: 10 }}>
         <Text style={s.headline}>Your personal trainer lives in your camera</Text>
-        <Text style={t.body}>FormAI watches your form in real time, counts every rep and coaches you out loud. No trainer fees, no subscription.</Text>
+        <Text style={t.body}>Gym Coach watches your form in real time, counts every rep and coaches you out loud. No trainer fees, no subscription.</Text>
       </View>
 
       <View style={{ gap: 10 }}>

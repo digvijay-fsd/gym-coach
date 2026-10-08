@@ -19,7 +19,7 @@
     },
     {
       "label": "Start: phone (dev build)",
-      "detail": "For the FormAI dev build installed on your phone, with real camera tracking",
+      "detail": "For the Gym Coach dev build installed on your phone, with real camera tracking",
       "type": "npm",
       "script": "start:dev-client",
       "isBackground": true,

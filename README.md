@@ -1,4 +1,4 @@
-# FormAI
+# Gym Coach
 
 A free AI fitness trainer. The phone camera tracks your body, counts reps, checks your form and coaches you out loud. Video is processed on the device and never uploaded.
 
@@ -19,7 +19,7 @@ In VS Code, run these from **Terminal › Run Task…** instead:
 | --- | --- |
 | Start: web preview | Opens the app in the browser. Tracking uses the built-in demo body. |
 | Start: phone (Expo Go) | Shows a QR code for the Expo Go app. Good for UI work; no pose model. |
-| Start: phone (dev build) | Connects to the FormAI dev build on your phone, with real camera tracking. |
+| Start: phone (dev build) | Connects to the Gym Coach dev build on your phone, with real camera tracking. |
 | Build: Android dev build (EAS) | Builds the installable dev app in the cloud (`npx eas-cli@latest login` first). |
 | Check: everything | Type check, lint and pose tests. Run before committing. |
 

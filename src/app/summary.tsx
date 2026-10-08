@@ -136,7 +136,7 @@ export default function Summary() {
           style={{ flex: 1 }}
           onPress={() =>
             // Some desktop browsers have no share sheet; ignore it there.
-            Share.share({ message: `${ex.name}: ${hold ? `${total}s held` : `${total} reps`}, form score ${r.score} with FormAI.` }).catch(() => {})
+            Share.share({ message: `${ex.name}: ${hold ? `${total}s held` : `${total} reps`}, form score ${r.score} with Gym Coach.` }).catch(() => {})
           }
         />
         <Button label="Done" style={{ flex: 2 }} onPress={() => router.replace('/home')} />

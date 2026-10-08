@@ -56,7 +56,7 @@ export default function Scan() {
 
         {(permission !== null && !permission.granted) || cameraError ? (
           <CameraPermissionCard
-            purpose="FormAI uses the back camera to read exercise QR codes."
+            purpose="Gym Coach uses the back camera to read exercise QR codes."
             blocked={permission !== null && !permission.granted && !permission.canAskAgain}
             error={cameraError}
             onAllow={allowCamera}
@@ -85,7 +85,7 @@ export default function Scan() {
           {exercise ? (
             <Button label="Open exercise" onPress={() => router.replace(`/exercise/${exercise.id}`)} />
           ) : (
-            <Text style={[t.small, { lineHeight: 18 }]}>This code does not match a FormAI exercise. Its contents are shown above.</Text>
+            <Text style={[t.small, { lineHeight: 18 }]}>This code does not match a Gym Coach exercise. Its contents are shown above.</Text>
           )}
           <Button variant="outline" label="Scan another code" onPress={() => setScanned(null)} />
         </View>

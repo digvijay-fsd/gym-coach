@@ -490,7 +490,7 @@ export default function Session() {
 
       {(webTracking ? !webAllowed : permission !== null && !permission.granted) || cameraError ? (
         <CameraPermissionCard
-          purpose="FormAI watches your body through the front camera to count your reps and correct your form."
+          purpose="Gym Coach watches your body through the front camera to count your reps and correct your form."
           blocked={!webTracking && permission !== null && !permission.granted && !permission.canAskAgain}
           error={cameraError}
           onAllow={allowCamera}
