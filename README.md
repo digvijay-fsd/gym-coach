@@ -29,7 +29,17 @@ In VS Code, run these from **Terminal › Run Task…** instead:
 npm run phone:web
 ```
 
-This builds the web app and serves it from your PC at `https://<your-pc-ip>:8443`. Open that on a phone on the same Wi-Fi. The certificate is self-signed, so the browser warns once (iPhone: Show Details › visit this website; Android: Advanced › Proceed). Tracking uses MediaPipe in the browser and needs internet the first time to download the model. Re-run the command after code changes.
+This builds the web app and serves it from your PC at `https://<your-pc-ip>:8443`. Open that on a phone on the same Wi-Fi. The certificate is self-signed, so the browser warns once (iPhone: Show Details › visit this website; Android: Advanced › Proceed). Tracking uses MediaPipe in the browser, served by your PC, so it works on a local network with no internet. The only download is the pose model, once, the first time you run the command (`npm run prepare:offline` does just that step). Re-run the command after code changes.
+
+### Offline use
+
+Everything runs on your PC and phone; nothing needs the internet once set up:
+
+- **Phone browser** (`npm run phone:web`): app, MediaPipe and the pose model are all served from `public/mediapipe/` on your PC.
+- **Android dev build**: the pose model is built into the app.
+- **Expo Go / dev build server**: Metro runs on your PC over Wi-Fi.
+
+Internet is only needed for one-time setup: `npm install`, the first model download, and EAS cloud builds.
 
 ### Which way to run it
 

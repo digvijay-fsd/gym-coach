@@ -42,3 +42,6 @@ yarn-error.*
 
 # local HTTPS certificate for phone testing
 .cert/
+
+# MediaPipe files for offline web tracking (npm run prepare:offline)
+public/mediapipe/

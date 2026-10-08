@@ -9,19 +9,20 @@ import type { Pose } from '../pose/analysis';
 import { SkeletonOverlay } from './SkeletonOverlay';
 import type { WebPoseCameraProps } from './WebPoseCamera';
 
-const CDN = 'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@1.1.0';
-const MODEL_URL =
-  'https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_lite/float16/latest/pose_landmarker_lite.task';
+// Served by this app from public/mediapipe/ (scripts/prepare-offline.mjs), so
+// tracking works on a local network with no internet.
+const BASE = '/mediapipe';
+const MODEL_URL = `${BASE}/pose_landmarker_lite.task`;
 const RENDER_MS = 50;
 
 type Vision = typeof import('@mediapipe/tasks-vision');
 // Metro cannot bundle MediaPipe (it loads code with a computed dynamic import),
-// so the ES module comes from the CDN at runtime; the npm package supplies types only.
+// so the ES module is loaded at runtime; the npm package supplies types only.
 const loadVision = new Function('url', 'return import(url)') as (url: string) => Promise<Vision>;
 
 async function createLandmarker(): Promise<PoseLandmarker> {
-  const { FilesetResolver, PoseLandmarker } = await loadVision(`${CDN}/vision_bundle.mjs`);
-  const fileset = await FilesetResolver.forVisionTasks(`${CDN}/wasm`);
+  const { FilesetResolver, PoseLandmarker } = await loadVision(new URL(`${BASE}/vision_bundle.mjs`, location.origin).href);
+  const fileset = await FilesetResolver.forVisionTasks(`${BASE}/wasm`);
   const options = (delegate: 'GPU' | 'CPU') => ({
     baseOptions: { modelAssetPath: MODEL_URL, delegate },
     runningMode: 'VIDEO' as const,

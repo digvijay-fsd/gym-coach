@@ -44,7 +44,8 @@
     "typecheck": "tsc --noEmit",
     "lint": "expo lint",
     "check": "npm run typecheck && npm run lint && npm test",
-    "phone:web": "expo export --platform web && node scripts/serve-https.mjs"
+    "phone:web": "node scripts/prepare-offline.mjs && expo export --platform web && node scripts/serve-https.mjs",
+    "prepare:offline": "node scripts/prepare-offline.mjs"
   },
   "private": true
 }
