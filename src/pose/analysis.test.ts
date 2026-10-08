@@ -21,7 +21,7 @@ test('angle measures the vertex angle in degrees', () => {
   assert.equal(Math.round(angle({ x: -1, y: 0 }, { x: 0, y: 0 }, { x: 1, y: 0 })), 180);
 });
 
-for (const id of ['squat', 'lunge', 'pushup', 'bridge', 'jacks']) {
+for (const id of ['squat', 'goblet', 'lunge', 'pushup', 'bridge', 'jacks', 'curl', 'press', 'raise', 'rdl', 'row', 'highknees', 'situp', 'climbers']) {
   test(`${id}: counts one rep per demo cycle`, () => {
     const { tracker } = run(id, 2800 * 8 - 100);
     assert.equal(tracker.repCount, 8);
@@ -68,6 +68,28 @@ test('no reps are counted while the body is out of frame', () => {
   assert.equal(tracker.repCount, 0);
 });
 
+// Each demo injects one faulty rep in four (rep 3); the matching cue must fire on that rep only.
+const FAULTS: [string, string][] = [
+  ['curl', 'elbow-drift'],
+  ['press', 'lockout'],
+  ['raise', 'too-high'],
+  ['rdl', 'squatting'],
+  ['row', 'upright'],
+  ['highknees', 'height'],
+  ['situp', 'range'],
+  ['climbers', 'knee-drive'],
+];
+for (const [id, issue] of FAULTS) {
+  test(`${id}: flags ${issue} on the faulty rep only`, () => {
+    const { tracker } = run(id, 2800 * 4 - 100);
+    const flagged = tracker.reps.filter((r) => r.issues.some((i) => i.id === issue)).map((r) => r.index);
+    assert.deepEqual(flagged, [3]);
+  });
+}
+
 test('every exercise has rules', () => {
-  assert.deepEqual(Object.keys(RULES).sort(), ['bridge', 'jacks', 'lunge', 'plank', 'pushup', 'squat', 'wallsit']);
+  assert.deepEqual(Object.keys(RULES).sort(), [
+    'bridge', 'climbers', 'curl', 'goblet', 'highknees', 'jacks', 'lunge', 'plank',
+    'press', 'pushup', 'raise', 'rdl', 'row', 'situp', 'squat', 'wallsit',
+  ]);
 });

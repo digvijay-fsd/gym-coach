@@ -3,8 +3,10 @@ import { useEffect, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { SkeletonOverlay } from '../../components/SkeletonOverlay';
-import { Button, Card, Icon, IconButton, t } from '../../components/ui';
+import { Button, Card, Glyph, Icon, IconButton, t } from '../../components/ui';
 import { getExercise } from '../../data/exercises';
+import { suggestNext, weightStep } from '../../data/progression';
+import { lastSessionOf, useStore } from '../../state/store';
 import { createDemoPoseSource } from '../../pose/simulator';
 import { colors, fonts } from '../../theme';
 
@@ -28,6 +30,8 @@ function Stepper({ label, value, display, onChange, step, min, max }: { label: s
 export default function ExerciseDetail() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const ex = getExercise(id);
+  const { history, profile } = useStore();
+  const [weight, setWeight] = useState(() => (ex ? (suggestNext(ex, lastSessionOf(history, id), ex.target, profile.units).weight ?? 0) : 0));
   const [sets, setSets] = useState(ex?.sets ?? 3);
   const [target, setTarget] = useState(ex?.target ?? 10);
   const [rest, setRest] = useState(ex?.rest ?? 60);
@@ -56,6 +60,12 @@ export default function ExerciseDetail() {
   }
 
   const hold = ex.mode === 'hold';
+  const step = weightStep(ex.body, profile.units);
+  const start = () => {
+    const params = { id: ex.id, sets: String(sets), target: String(target), rest: String(rest) };
+    if (ex.tracked) router.push({ pathname: '/session/[id]', params: { ...params, weight: ex.weighted ? String(weight) : '' } });
+    else router.push({ pathname: '/log/[id]', params });
+  };
   return (
     <SafeAreaView style={s.root}>
       <View style={s.header}>
@@ -66,8 +76,14 @@ export default function ExerciseDetail() {
 
       <ScrollView contentContainerStyle={s.content} showsVerticalScrollIndicator={false}>
         <View style={s.preview} onLayout={(e) => setBox({ w: e.nativeEvent.layout.width, h: e.nativeEvent.layout.height })}>
-          <SkeletonOverlay pose={demo(time)} width={box.w} height={box.h} />
-          <Text style={s.previewTag}>{ex.view === 'front' ? 'Film from the front' : 'Film from the side'}</Text>
+          {ex.tracked ? (
+            <SkeletonOverlay pose={demo(time)} width={box.w} height={box.h} />
+          ) : (
+            <View style={s.glyphBox}>
+              <Glyph path={ex.glyph} size={96} color={colors.textMuted} />
+            </View>
+          )}
+          <Text style={s.previewTag}>{ex.tracked ? (ex.view === 'front' ? 'Film from the front' : 'Film from the side') : 'Logged by hand'}</Text>
         </View>
 
         <View style={{ gap: 4 }}>
@@ -76,7 +92,7 @@ export default function ExerciseDetail() {
         </View>
 
         <View style={{ gap: 8 }}>
-          <Text style={t.label}>What the AI checks</Text>
+          <Text style={t.label}>{ex.tracked ? 'What the AI checks' : 'Form tips'}</Text>
           <View style={s.checks}>
             {ex.checks.map((c) => (
               <View key={c} style={s.check}>
@@ -92,24 +108,25 @@ export default function ExerciseDetail() {
           <Stepper label={hold ? 'Hold' : 'Reps'} value={target} display={hold ? `${target}s` : String(target)} onChange={setTarget} step={hold ? 5 : 1} min={hold ? 10 : 3} max={hold ? 180 : 50} />
           <Stepper label="Rest" value={rest} display={`${rest}s`} onChange={setRest} step={15} min={15} max={180} />
         </View>
+        {ex.tracked && ex.weighted && (
+          <Stepper label={`Dumbbell weight (${profile.units})`} value={weight} display={weight ? String(weight) : 'None'} onChange={(v) => setWeight(Math.round(v * 100) / 100)} step={step} min={0} max={200} />
+        )}
 
         <Card style={s.tip}>
-          <Icon name="phone" size={22} color={colors.accent} />
+          <Icon name={ex.tracked ? 'phone' : 'edit'} size={22} color={colors.accent} />
           <View style={{ flex: 1, gap: 4 }}>
-            <Text style={[t.bodyStrong, { fontSize: 14 }]}>Camera setup</Text>
+            <Text style={[t.bodyStrong, { fontSize: 14 }]}>{ex.tracked ? 'Camera setup' : 'How logging works'}</Text>
             <Text style={[t.small, { color: colors.textMuted, lineHeight: 18 }]}>
-              Lean your phone against a wall about 2 m away, at hip height. Keep your whole body in frame, {ex.view === 'front' ? 'facing the camera' : 'side-on to the camera'}, in good light.
+              {ex.tracked
+                ? `Lean your phone against a wall about 2 m away, at hip height. Keep your whole body in frame, ${ex.view === 'front' ? 'facing the camera' : 'side-on to the camera'}, in good light.`
+                : 'The camera cannot see this exercise reliably, so you enter the weight and reps after each set. A rest timer starts when you tick a set.'}
             </Text>
           </View>
         </Card>
       </ScrollView>
 
       <View style={s.footer}>
-        <Button
-          icon="scan"
-          label="Start with camera"
-          onPress={() => router.push({ pathname: '/session/[id]', params: { id: ex.id, sets: String(sets), target: String(target), rest: String(rest) } })}
-        />
+        <Button icon={ex.tracked ? 'scan' : 'edit'} label={ex.tracked ? 'Start with camera' : 'Log sets'} onPress={start} />
       </View>
     </SafeAreaView>
   );
@@ -119,6 +136,7 @@ const s = StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.bg },
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20, paddingTop: 8 },
   content: { padding: 20, gap: 16 },
+  glyphBox: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   preview: { height: 220, borderRadius: 20, backgroundColor: '#171914', overflow: 'hidden' },
   previewTag: { position: 'absolute', left: 14, bottom: 14, fontFamily: fonts.medium, fontSize: 12, color: colors.textMuted, backgroundColor: colors.bg, paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6, overflow: 'hidden' },
   checks: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },

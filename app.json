@@ -44,6 +44,15 @@
           "model": "lite",
           "cameraPermissionText": "Allow Gym Coach to use your camera for on-device exercise tracking and QR scanning."
         }
+      ],
+      "expo-secure-store",
+      "expo-sharing",
+      [
+        "expo-notifications",
+        {
+          "color": "#C6F432",
+          "defaultChannel": "reminders"
+        }
       ]
     ],
     "scheme": "formai",

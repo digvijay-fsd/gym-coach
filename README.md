@@ -50,23 +50,30 @@ Internet is only needed for one-time setup: `npm install`, the first model downl
 
 ```
 src/
-  app/                 Screens. Every file is a route (Expo Router).
-    index.tsx          Welcome
-    setup.tsx          Goals, level, days, equipment
-    (tabs)/            Home, Workouts, Progress and the bottom tab bar
-    exercise/[id].tsx  Exercise details, sets/reps/rest, camera tips
-    session/[id].tsx   Live workout: camera, skeleton, reps, cues, rest timer
-    summary.tsx        Results after a workout
-    scan.tsx           Scan a QR code to open an exercise
-  pose/
-    analysis.ts        Joint angles, rep counting, form rules and scoring
-    simulator.ts       Demo body used where the camera model is not available
-    analysis.test.ts   Tests for every exercise
-  components/          Shared UI (buttons, icons, skeleton overlay)
-  data/exercises.ts    Exercise list and daily plans
-  state/store.tsx      Profile and workout history
-  hooks/               Small shared hooks
-  theme.ts             Colors and fonts
+  app/                       Screens. Every file is a route (Expo Router).
+    _layout.tsx              Login gate: signed-out users only see Welcome, Sign up, Log in
+    index.tsx                Welcome
+    signup.tsx, login.tsx    On-device accounts
+    setup.tsx                Goals, home/gym, level, days, equipment, units
+    (tabs)/                  Home, Workouts (programs + library), Progress, Profile
+    program/[id].tsx         Program details and "make this my plan"
+    workout/[program]/[day]  Workout overview
+    workout/next.tsx         Workout player: next exercise, skip, end
+    workout/done.tsx         Whole-workout summary
+    session/[id].tsx         Camera-coached exercise: skeleton, reps, cues, rest
+    log/[id].tsx             Hand-logged sets: weight, reps, rest timer, next-weight tip
+    exercise/[id].tsx        Exercise details
+    summary.tsx              Single-exercise results
+    scan.tsx                 Scan a QR code to open an exercise
+  auth/                      Password hashing (PBKDF2) and secure storage
+  pose/                      Joint angles, rep counting, form rules, demo body, tests
+  data/exercises.ts          Exercise library and programs
+  data/plan.ts               Which program day is next
+  data/progression.ts        Progressive overload (with tests)
+  state/store.tsx            Accounts, per-account profile, history and workouts
+  components/, hooks/        Shared UI and hooks
+  theme.ts                   Colors and fonts
+docs/PRODUCT_PLAN.md         Research notes and the feature roadmap
 ```
 
 ## Common changes

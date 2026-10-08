@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Button, Chip, IconButton, Segmented, t } from '../components/ui';
+import { suggestProgram } from '../data/exercises';
 import { useStore, type Goal, type Profile } from '../state/store';
 import { colors, fonts } from '../theme';
 
@@ -76,6 +77,19 @@ export default function Setup() {
         </View>
 
         <View style={{ gap: 10 }}>
+          <Text style={t.label}>Where do you train?</Text>
+          <Segmented
+            value={p.where}
+            onChange={(where) => update({ where })}
+            options={[
+              { value: 'home', label: 'Home' },
+              { value: 'gym', label: 'Gym' },
+              { value: 'both', label: 'Both' },
+            ]}
+          />
+        </View>
+
+        <View style={{ gap: 10 }}>
           <Text style={t.label}>Fitness level</Text>
           <Segmented
             value={p.level}
@@ -125,13 +139,26 @@ export default function Setup() {
             })}
           </View>
         </View>
+        <View style={{ gap: 10 }}>
+          <Text style={t.label}>Weight units</Text>
+          <Segmented
+            value={p.units}
+            onChange={(units) => update({ units })}
+            options={[
+              { value: 'kg', label: 'Kilograms (kg)' },
+              { value: 'lb', label: 'Pounds (lb)' },
+            ]}
+          />
+        </View>
       </ScrollView>
 
       <View style={s.footer}>
         <Button
           label="Build my plan"
           onPress={() => {
-            setProfile({ ...p, name: p.name.trim() });
+            // A new plan is suggested whenever the answers change what fits.
+            const suggested = suggestProgram(p).id;
+            setProfile({ ...p, name: p.name.trim(), programId: profile.programId && profile.where === p.where && profile.goal === p.goal ? profile.programId : suggested });
             router.replace('/home');
           }}
         />

@@ -13,7 +13,7 @@ const fmt = (ms: number) => {
 
 export default function Summary() {
   const { id } = useLocalSearchParams<{ id: string }>();
-  const { history } = useStore();
+  const { history, profile } = useStore();
   const r = history.find((h) => h.id === id);
   const ex = r && getExercise(r.exerciseId);
 
@@ -28,9 +28,11 @@ export default function Summary() {
 
   const hold = r.mode === 'hold';
   const total = r.sets.reduce((a, b) => a + b, 0);
-  const previous = history.filter((h) => h.exerciseId === r.exerciseId && h.id !== r.id);
+  // Hand-logged sessions have no form score; compare only camera sessions.
+  const previous = history.filter((h) => h.exerciseId === r.exerciseId && h.id !== r.id && !h.manual);
   const bestBefore = previous.reduce((m, h) => Math.max(m, h.score), 0);
-  const isBest = previous.length > 0 && r.score > bestBefore;
+  const isBest = !r.manual && previous.length > 0 && r.score > bestBefore;
+  const topWeight = Math.max(0, ...(r.weights ?? []));
   const issues = Object.entries(r.issueCounts).sort((a, b) => b[1] - a[1]);
   const clean = hold ? null : r.repScores.filter((x) => x === 100).length;
 
@@ -47,7 +49,9 @@ export default function Summary() {
           {[
             ['Time', fmt(r.durationMs), colors.text],
             [hold ? 'Total hold' : 'Total reps', hold ? `${total}s` : String(total), colors.text],
-            ['Form score', String(r.score), r.score < 85 ? colors.warn : colors.accent],
+            r.manual
+              ? ['Top weight', topWeight ? `${topWeight} ${profile.units}` : '–', colors.text]
+              : ['Form score', String(r.score), r.score < 85 ? colors.warn : colors.accent],
           ].map(([l, v, c]) => (
             <Card key={l} style={{ flex: 1, padding: 12, gap: 4 }}>
               <Text style={t.small}>{l}</Text>
@@ -64,7 +68,10 @@ export default function Summary() {
               <View key={i} style={{ gap: 6 }}>
                 <View style={s.rowBetween}>
                   <Text style={s.rowTitle}>Set {i + 1}</Text>
-                  <Text style={t.smallStrong}>{hold ? `${n}s held` : `${n} reps`}</Text>
+                  <Text style={t.smallStrong}>
+                    {hold ? `${n}s held` : `${n} reps`}
+                    {r.weights?.[i] ? ` × ${r.weights[i]} ${profile.units}` : ''}
+                  </Text>
                 </View>
                 <View style={s.track}>
                   <View style={[s.fill, { width: `${pct}%` }]} />
@@ -136,7 +143,7 @@ export default function Summary() {
           style={{ flex: 1 }}
           onPress={() =>
             // Some desktop browsers have no share sheet; ignore it there.
-            Share.share({ message: `${ex.name}: ${hold ? `${total}s held` : `${total} reps`}, form score ${r.score} with Gym Coach.` }).catch(() => {})
+            Share.share({ message: `${ex.name}: ${hold ? `${total}s held` : `${total} reps`}, ${r.manual ? '' : `form score ${r.score} `}with Gym Coach.` }).catch(() => {})
           }
         />
         <Button label="Done" style={{ flex: 2 }} onPress={() => router.replace('/home')} />
